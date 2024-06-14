@@ -81,8 +81,8 @@ var _ = Describe("Handlers", func() {
 			rows := sqlmock.NewRows([]string{"ID", "TestProjectName"}).
 				AddRow(123, "project 123")
 
-			mock.ExpectQuery("SELECT (.+) FROM \"test_runs\" WHERE id = \\$1").
-				WithArgs("123").
+			mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "test_runs" WHERE id = $1 ORDER BY "test_runs"."id" LIMIT $2`)).
+				WithArgs("123", 1).
 				WillReturnRows(rows)
 
 			w := httptest.NewRecorder()
@@ -99,6 +99,7 @@ var _ = Describe("Handlers", func() {
 			if err := json.NewDecoder(w.Body).Decode(&testRun); err != nil {
 				Fail(err.Error())
 			}
+
 			Expect(int(testRun.ID)).To(Equal(123))
 			Expect(testRun.TestProjectName).To(Equal("project 123"))
 		})
@@ -237,8 +238,8 @@ var _ = Describe("Handlers", func() {
 			}
 
 			mock.ExpectBegin()
-			mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "test_runs" WHERE id = $1 ORDER BY "test_runs"."id" LIMIT 1`)).
-				WithArgs(expectedTestRun.ID).
+			mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "test_runs" WHERE id = $1 ORDER BY "test_runs"."id" LIMIT $2`)).
+				WithArgs(expectedTestRun.ID, 1).
 				WillReturnError(errors.New("Record not found DB error"))
 
 			w := httptest.NewRecorder()
@@ -301,12 +302,12 @@ var _ = Describe("Handlers", func() {
 			testRuns := sqlmock.NewRows([]string{"id", "TestProjectName"}).
 				AddRow(1, "project 1")
 
-			mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "test_runs" WHERE id = $1 ORDER BY "test_runs"."id" LIMIT 1`)).
-				WithArgs(testRun.ID).
+			mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "test_runs" WHERE id = $1 ORDER BY "test_runs"."id" LIMIT $2`)).
+				WithArgs(testRun.ID, 1).
 				WillReturnRows(testRuns)
 
-			mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "tags" WHERE id = $1 ORDER BY "tags"."id" LIMIT 1`)).
-				WithArgs(1).
+			mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "tags" WHERE id = $1 ORDER BY "tags"."id" LIMIT $2`)).
+				WithArgs(1, 1).
 				WillReturnError(errors.New("database error"))
 
 			w := httptest.NewRecorder()
@@ -374,13 +375,13 @@ var _ = Describe("Handlers", func() {
 				AddRow(1, "project 1")
 
 			//mock.ExpectBegin()
-			mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "test_runs" WHERE id = $1 ORDER BY "test_runs"."id" LIMIT 1`)).
-				WithArgs(testRun.ID).
+			mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "test_runs" WHERE id = $1 ORDER BY "test_runs"."id" LIMIT $2`)).
+				WithArgs(testRun.ID, 1).
 				WillReturnRows(testRuns)
 
 			rows := sqlmock.NewRows([]string{"id"})
 
-			mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "tags" WHERE name = $1 ORDER BY "tags"."id" LIMIT 1`)).WithArgs("TagName").WillReturnRows(rows)
+			mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "tags" WHERE name = $1 ORDER BY "tags"."id" LIMIT $2`)).WithArgs("TagName", 1).WillReturnRows(rows)
 
 			mock.ExpectBegin()
 			mock.ExpectQuery(regexp.QuoteMeta(`INSERT INTO "tags" ("name") VALUES ($1) RETURNING "id"`)).
@@ -560,7 +561,8 @@ var _ = Describe("Handlers", func() {
 				for _, spec := range suite.SpecRuns {
 					for _, tag := range spec.Tags {
 						rows := sqlmock.NewRows([]string{"id"}).AddRow(1)
-						mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "tags" WHERE name = $1 ORDER BY "tags"."id" LIMIT 1`)).WithArgs(tag.Name).WillReturnRows(rows)
+						mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "tags" WHERE name = $1 ORDER BY "tags"."id" LIMIT $2`)).WithArgs(tag.Name, 1).WillReturnRows(rows)
+						mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "tags" WHERE name = $1 ORDER BY "tags"."id" LIMIT $2`)).WithArgs(tag.Name, 1).WillReturnRows(rows)
 						mock.ExpectCommit()
 					}
 				}
@@ -590,7 +592,7 @@ var _ = Describe("Handlers", func() {
 
 			rows := sqlmock.NewRows([]string{"id"})
 
-			mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "tags" WHERE name = $1 ORDER BY "tags"."id" LIMIT 1`)).WithArgs(tag.Name).WillReturnRows(rows)
+			mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "tags" WHERE name = $1 ORDER BY "tags"."id" LIMIT $2`)).WithArgs(tag.Name, 1).WillReturnRows(rows)
 			mock.ExpectBegin()
 
 			mock.ExpectQuery(regexp.QuoteMeta(`INSERT INTO "tags" ("name") VALUES ($1) RETURNING "id"`)).
@@ -611,7 +613,7 @@ var _ = Describe("Handlers", func() {
 
 			rows := sqlmock.NewRows([]string{"id"})
 
-			mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "tags" WHERE name = $1 ORDER BY "tags"."id" LIMIT 1`)).WithArgs(tag.Name).WillReturnRows(rows)
+			mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "tags" WHERE name = $1 ORDER BY "tags"."id" LIMIT $2`)).WithArgs(tag.Name, 1).WillReturnRows(rows)
 			mock.ExpectBegin()
 
 			mock.ExpectQuery(regexp.QuoteMeta(`INSERT INTO "tags" ("name") VALUES ($1) RETURNING "id"`)).
@@ -661,7 +663,7 @@ var _ = Describe("Handlers", func() {
 			for _, suite := range testRun.SuiteRuns {
 				for _, spec := range suite.SpecRuns {
 					for _, tag := range spec.Tags {
-						mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "tags" WHERE name = $1 ORDER BY "tags"."id" LIMIT 1`)).WithArgs(tag.Name).WillReturnError(errors.New("unknown error"))
+						mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "tags" WHERE name = $1 ORDER BY "tags"."id" LIMIT $2`)).WithArgs(tag.Name, 1).WillReturnError(errors.New("unknown error"))
 						mock.ExpectRollback()
 					}
 				}
@@ -678,8 +680,8 @@ var _ = Describe("Handlers", func() {
 	Context("when UpdateTestRun handler is invoked", func() {
 		It("and test run does not exist, it should return 404", func() {
 			rows := sqlmock.NewRows([]string{"ID", "TestProjectName"})
-			mock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM \"test_runs\" WHERE id = $1 ORDER BY \"test_runs\".\"id\" LIMIT 1")).
-				WithArgs("123").
+			mock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM \"test_runs\" WHERE id = $1 ORDER BY \"test_runs\".\"id\" LIMIT $2")).
+				WithArgs("123", 1).
 				WillReturnRows(rows)
 
 			w := httptest.NewRecorder()
@@ -721,8 +723,8 @@ var _ = Describe("Handlers", func() {
 				},
 			}
 
-			mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "test_runs" WHERE id = $1 ORDER BY "test_runs"."id" LIMIT 1`)).
-				WithArgs("1").
+			mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "test_runs" WHERE id = $1 ORDER BY "test_runs"."id" LIMIT $2`)).
+				WithArgs("1", 1).
 				WillReturnRows(mock.NewRows([]string{"id", "test_project_name", "test_seed"}).
 					AddRow(expectedTestRun.ID, expectedTestRun.TestProjectName, expectedTestRun.TestSeed))
 
@@ -757,8 +759,8 @@ var _ = Describe("Handlers", func() {
 				EndTime:         time.Now(),
 			}
 
-			mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "test_runs" WHERE id = $1 ORDER BY "test_runs"."id" LIMIT 1`)).
-				WithArgs("1").
+			mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "test_runs" WHERE id = $1 ORDER BY "test_runs"."id" LIMIT $2`)).
+				WithArgs("1", 1).
 				WillReturnRows(mock.NewRows([]string{"id", "test_project_name", "test_seed", "start_time", "end_time"}).
 					AddRow(expectedTestRun.ID, expectedTestRun.TestProjectName, expectedTestRun.TestSeed, expectedTestRun.StartTime, expectedTestRun.EndTime))
 
@@ -824,8 +826,8 @@ var _ = Describe("Handlers", func() {
 			}
 
 			//mock.ExpectBegin()
-			mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "test_runs" WHERE id = $1 ORDER BY "test_runs"."id" LIMIT 1`)).
-				WithArgs("1").
+			mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "test_runs" WHERE id = $1 ORDER BY "test_runs"."id" LIMIT $2`)).
+				WithArgs("1", 1).
 				WillReturnRows(mock.NewRows([]string{"id", "test_project_name", "test_seed"}).
 					AddRow(expectedTestRun.ID, expectedTestRun.TestProjectName, expectedTestRun.TestSeed))
 
@@ -993,106 +995,4 @@ var _ = Describe("Handlers", func() {
 		})
 
 	})
-
-	//Context("When ReportTestRunById handler is invoked", func() {
-	//	It("should query DB with where clause filtering by id", func() {
-	//
-	//		expectedTestRun := models.TestRun{
-	//			ID:              123,
-	//			TestProjectName: "TestProject",
-	//			StartTime:       time.Now(),
-	//			EndTime:         time.Now(),
-	//			SuiteRuns: []models.SuiteRun{
-	//				{
-	//					ID:        1,
-	//					TestRunID: 123,
-	//					SuiteName: "TestSuite",
-	//					StartTime: time.Now(),
-	//					EndTime:   time.Now(),
-	//					SpecRuns: []models.SpecRun{
-	//						{
-	//							ID:              1,
-	//							SuiteID:         1,
-	//							SpecDescription: "TestSpec",
-	//							Status:          "Passed",
-	//							Message:         "",
-	//							StartTime:       time.Now(),
-	//							EndTime:         time.Now(),
-	//						},
-	//					},
-	//				},
-	//			},
-	//		}
-	//
-	//		// Mock database query
-	//		mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "test_runs" WHERE id = $1 ORDER BY "test_runs"."id" LIMIT 1`)).
-	//			WithArgs("123").
-	//			WillReturnRows(mock.NewRows([]string{"id", "test_project_name", "start_time", "end_time"}).
-	//				AddRow(expectedTestRun.ID, expectedTestRun.TestProjectName, expectedTestRun.StartTime, expectedTestRun.EndTime))
-	//
-	//		mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "suite_runs" WHERE "suite_runs"."test_run_id" = $1`)).
-	//			WithArgs(123).
-	//			WillReturnRows(mock.NewRows([]string{"id", "test_run_id", "suite_name", "start_time", "end_time"}).
-	//				AddRow(expectedTestRun.SuiteRuns[0].ID, expectedTestRun.ID, expectedTestRun.SuiteRuns[0].SuiteName, expectedTestRun.SuiteRuns[0].StartTime, expectedTestRun.SuiteRuns[0].EndTime))
-	//
-	//		mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "spec_runs" WHERE "spec_runs"."suite_id" = $1`)).
-	//			WithArgs(1).
-	//			WillReturnRows(mock.NewRows([]string{"id", "suite_id", "spec_description", "status", "start_time", "end_time"}).
-	//				AddRow(expectedTestRun.SuiteRuns[0].SpecRuns[0].ID, expectedTestRun.SuiteRuns[0].ID, expectedTestRun.SuiteRuns[0].SpecRuns[0].SpecDescription, expectedTestRun.SuiteRuns[0].SpecRuns[0].Status, expectedTestRun.SuiteRuns[0].SpecRuns[0].StartTime, expectedTestRun.SuiteRuns[0].SpecRuns[0].EndTime))
-	//
-	//		// Call the method
-	//		w := httptest.NewRecorder()
-	//		c, _ := gin.CreateTestContext(w)
-	//		//gin.ena
-	//		//
-	//		c.Params = append(c.Params, gin.Param{Key: "id", Value: "123"})
-	//		handler := handlers.NewHandler(gormDb)
-	//
-	//		handler.ReportTestRunById(c)
-	//
-	//		// Verify the response
-	//		//require.Equal(t, http.StatusOK, c.Writer.Status())
-	//
-	//		// Verify the HTML output if needed
-	//		// htmlOutput := c.Writer.Body.String()
-	//		// require.Contains(t, htmlOutput, "Expected HTML output")
-	//
-	//		// Check for any remaining expectations
-	//		//require.NoError(t, mock.ExpectationsWereMet())
-	//
-	//		//specRunRow := sqlmock.NewRows([]string{"id", "suite_id", "spec_description", "status", "message", "start_time", "end_time"}).
-	//		//	AddRow(1, 11, "desc1", "status", "message", myTime(time.Now()), myTime(time.Now()))
-	//		//mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "spec_runs" WHERE "spec_runs"."suite_id" IN ($1)`)).WithArgs(1).WillReturnRows(specRunRow)
-	//		//
-	//		//suiteRunRow := sqlmock.NewRows([]string{"id", "test_run_id", "suite_name", "start_time", "end_time"}).
-	//		//	AddRow(1, 123, "Sample Spec 1", myTime(time.Now()), myTime(time.Now())).
-	//		//	AddRow(2, 123, "Sample Spec 2", myTime(time.Now()), myTime(time.Now()))
-	//		//
-	//		//mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "suite_runs" WHERE "suite_runs"."test_run_id" = $1`)).WithArgs(123).WillReturnRows(suiteRunRow)
-	//		//
-	//		//rows := sqlmock.NewRows([]string{"ID", "TestProjectName"}).
-	//		//	AddRow(123, "project 1")
-	//		//
-	//		//mock.ExpectQuery(regexp.QuoteMeta(`SELECT \* FROM "spec_runs" WHERE "spec_runs"\."suite_id" IN \(\$1\)`)).
-	//		//	WithArgs("123").
-	//		//	WillReturnRows(rows)
-	//		//
-	//		//w := httptest.NewRecorder()
-	//		//c, _ := gin.CreateTestContext(w)
-	//		//
-	//		//c.Params = append(c.Params, gin.Param{Key: "id", Value: "123"})
-	//		//handler := handlers.NewHandler(gormDb)
-	//		//handler.ReportTestRunById(c)
-	//		//
-	//		//Expect(w.Code).To(Equal(200))
-	//		//
-	//		//var testRun models.TestRun
-	//		//
-	//		//if err := json.NewDecoder(w.Body).Decode(&testRun); err != nil {
-	//		//	Fail(err.Error())
-	//		//}
-	//		//Expect(int(testRun.ID)).To(Equal(123))
-	//		//Expect(testRun.TestProjectName).To(Equal("project 123"))
-	//	})
-	//})
 })
