@@ -29,4 +29,8 @@ func RegisterRouters(router *gin.Engine) {
 	{
 		ping.GET("/", handler.Ping)
 	}
+	insights := router.Group("/insights")
+	{
+		insights.GET("/:name", handler.ReportTestInsights)
+	}
 }
